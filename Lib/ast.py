@@ -59,17 +59,25 @@ def literal_eval(node_or_string):
     """
     if isinstance(node_or_string, str):
         node_or_string = parse(node_or_string.lstrip(" \t"), mode='eval').body
+        return _convert_literal(node_or_string, True)
     elif isinstance(node_or_string, Expression):
         node_or_string = node_or_string.body
     return _convert_literal(node_or_string)
 
 
-def _convert_literal(node):
+_permitted_literal_types = (str, bytes, int, float, complex,
+                            bool, type(None), type(...))
+
+
+def _convert_literal(node, omit_validation=False):
     """
     Used by `literal_eval` to convert an AST node into a value.
     """
     if isinstance(node, Constant):
-        return node.value
+        if omit_validation:
+            return node.value
+        if type(value := node.value) in _permitted_literal_types:
+            return value
     if isinstance(node, Dict) and len(node.keys) == len(node.values):
         return dict(zip(
             map(_convert_literal, node.keys),
@@ -83,9 +91,16 @@ def _convert_literal(node):
         return set(map(_convert_literal, node.elts))
     if (
         isinstance(node, Call) and isinstance(node.func, Name)
-        and node.func.id == 'set' and node.args == node.keywords == []
     ):
-        return set()
+        if node.func.id == 'set' and node.args == node.keywords == []:
+            return set()
+        elif (
+              node.func.id == 'sentinel' and len(node.args) == 1
+              and node.keywords == []
+              and isinstance(arg := node.args[0], Constant)
+              and isinstance(name := arg.value, str)
+        ):
+            return sentinel(name)
     if (
         isinstance(node, UnaryOp)
         and isinstance(node.op, (UAdd, USub))
@@ -108,6 +123,29 @@ def _convert_literal(node):
             return left + right
         else:
             return left - right
+    if (isinstance(node, Compare)
+        and isinstance(node.left, Constant)
+        and type(left := _convert_literal(node.left)) in (int, float, str)
+        and len(node.ops) == 1
+        and isinstance(op := node.ops[0], (Eq, NotEq, Lt, LtE, Gt, GtE))
+        and len(node.comparators) == 1
+        and isinstance(node.comparators[0], Constant)
+        and type(right := node.comparators[0].value) in (int, float, str)
+        and (type(left) == type(right) or str not in [type(left), type(right)])
+    ):
+        if isinstance(op, Eq):
+            return left == right
+        elif isinstance(op, NotEq):
+            return left != right
+        elif isinstance(op, Lt):
+            return left < right
+        elif isinstance(op, LtE):
+            return left <= right
+        elif isinstance(op, Gt):
+            return left > right
+        else:
+            return left >= right
+
     msg = "malformed node or string"
     if lno := getattr(node, 'lineno', None):
         msg += f' on line {lno}'

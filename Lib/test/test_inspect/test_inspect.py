@@ -6304,9 +6304,9 @@ class TestSignatureDefinitions(unittest.TestCase):
         self._test_module_has_signatures(operator)
 
     def test_os_module_has_signatures(self):
-        unsupported_signature = {'chmod', 'utime'}
+        unsupported_signature = {'utime'}
         unsupported_signature |= {name for name in
-            ['get_terminal_size', 'link', 'register_at_fork', 'startfile']
+            ['get_terminal_size', 'register_at_fork', 'startfile']
             if hasattr(os, name)}
         self._test_module_has_signatures(os, unsupported_signature=unsupported_signature)
 
@@ -6375,7 +6375,9 @@ class TestSignatureDefinitions(unittest.TestCase):
     def test_thread_module_has_signatures(self):
         import _thread
         no_signature = {'RLock'}
-        self._test_module_has_signatures(_thread, no_signature)
+        unsupported_signature = {'interrupt_main'}
+        self._test_module_has_signatures(_thread, no_signature,
+            unsupported_signature=unsupported_signature)
 
     def test_time_module_has_signatures(self):
         no_signature = {

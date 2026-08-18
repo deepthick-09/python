@@ -2215,9 +2215,11 @@ def _signature_fromstr(cls, obj, s, skip_bound_arg=True):
             except NameError:
                 raise ValueError
 
-        if isinstance(value, (str, int, float, bytes, bool, type(None),
-                              sentinel)):
+        if isinstance(value, (str, int, float, bytes, bool, type(None))):
             return ast.Constant(value)
+        elif isinstance(value, sentinel):
+            return ast.Call(func=ast.Name(id='sentinel'),
+                            args=[ast.Constant(value.__name__)])
         raise ValueError
 
     class RewriteSymbolics(ast.NodeTransformer):
