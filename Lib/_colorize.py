@@ -48,6 +48,7 @@ class ANSIColors:
     BACKGROUND_BLUE = "\x1b[44m"
     BACKGROUND_CYAN = "\x1b[46m"
     BACKGROUND_GREEN = "\x1b[42m"
+    BACKGROUND_GREY = "\x1b[48;5;236m"
     BACKGROUND_MAGENTA = "\x1b[45m"
     BACKGROUND_RED = "\x1b[41m"
     BACKGROUND_WHITE = "\x1b[47m"
@@ -216,6 +217,52 @@ class Difflib(ThemeSection):
     removed: str = ANSIColors.RED
     reset: str = ANSIColors.RESET
 
+
+@dataclass(frozen=True, kw_only=True)
+class Dis(ThemeSection):
+    alt_block_first_bg:str = ANSIColors.BACKGROUND_GREY
+    alt_block_second_bg:str = ANSIColors.RESET # mb black bg ? but what about light mode ?
+
+    label_bg: str = ANSIColors.BACKGROUND_CYAN
+    label_fg: str = ANSIColors.BLACK
+
+    exception_label: str = ANSIColors.CYAN
+    argument_detail: str = ANSIColors.CYAN
+
+    op_load: str = ANSIColors.BLUE
+    op_pop: str = ANSIColors.MAGENTA
+    op_call_return: str = ANSIColors.YELLOW
+    op_control_flow: str = ANSIColors.GREEN
+
+    reset: str = ANSIColors.RESET
+
+    def color_by_opname(self, opname: str) -> str:
+        if opname.startswith("LOAD_"):
+            return self.op_load
+
+        if opname.startswith("POP_"):
+            return self.op_pop
+
+        if opname.startswith(("CALL", "RETURN")) or opname in (
+            "YIELD_VALUE",
+            "MAKE_FUNCTION",
+            "SET_FUNCTION_ATTRIBUTE",
+            "RESUME",
+        ):
+            return self.op_call_return
+
+        if opname.startswith(("JUMP_", "POP_JUMP_", "FOR_ITER")) or opname in (
+            "SEND",
+            "GET_AWAITABLE",
+            "GET_AITER",
+            "GET_ANEXT",
+            "END_ASYNC_FOR",
+            "CLEANUP_THROW",
+        ):
+            return self.op_control_flow
+
+
+        return self.reset
 
 @dataclass(frozen=True, kw_only=True)
 class FancyCompleter(ThemeSection):
@@ -478,6 +525,7 @@ class Theme:
     tokenize: Tokenize = field(default_factory=Tokenize)
     traceback: Traceback = field(default_factory=Traceback)
     unittest: Unittest = field(default_factory=Unittest)
+    dis: Dis = field(default_factory=Dis)
 
     def copy_with(
         self,
@@ -496,6 +544,7 @@ class Theme:
         tokenize: Tokenize | None = None,
         traceback: Traceback | None = None,
         unittest: Unittest | None = None,
+        dis: Dis | None = None
     ) -> Self:
         """Return a new Theme based on this instance with some sections replaced.
 
@@ -517,6 +566,7 @@ class Theme:
             tokenize=tokenize or self.tokenize,
             traceback=traceback or self.traceback,
             unittest=unittest or self.unittest,
+            dis=dis or self.dis
         )
 
     @classmethod
@@ -542,6 +592,7 @@ class Theme:
             tokenize=Tokenize.no_colors(),
             traceback=Traceback.no_colors(),
             unittest=Unittest.no_colors(),
+            dis=Dis.no_colors(),
         )
 
 
